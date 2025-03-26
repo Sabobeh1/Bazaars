@@ -1,0 +1,38 @@
+* show database
+
+* USE bazaars
+
+* SHOW TABLES IN Bazaars;
+
+* DESCRIBE products_images_t;
+
+* SELECT COUNT(*) FROM categories;
+
+* SELECT * 
+  FROM products_images_t 
+  LIMIT 10;
+
+* DROP TABLE IF EXISTS categories;
+* DROP TABLE IF EXISTS products_t;
+
+CREATE TABLE categories (
+  id INT NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  parentTaxonomy INT,
+  date_add DATETIME,
+  date_upd DATETIME,
+  -- add other fields from taxonomies as you like
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE products_t (
+  id INT NOT NULL,
+  sku VARCHAR(100),
+  weight DECIMAL(10,3),
+  wholesale_price DECIMAL(10,2),
+  retail_price DECIMAL(10,2),
+  in_shop_price DECIMAL(10,2),
+  images TEXT,
+  category_id INT,
+  PRIMARY KEY (id)
+);
