@@ -28,7 +28,7 @@ headers = {
 # 3) FETCH AND INSERT TAXONOMIES (CATEGORIES) INTO `categories` TABLE
 #    Using GET /rest/catalog/taxonomies.json?firstLevel to get only first-level categories.
 # -----------------------------------------------------------------------------
-taxonomy_url = "https://api.bigbuy.eu/rest/catalog/taxonomies.json?firstLevel"
+taxonomy_url = "https://api.bigbuy.eu/rest/catalog/taxonomies.json"
 print("Fetching categories from BigBuy...")
 taxonomy_response = requests.get(taxonomy_url, headers=headers)
 
