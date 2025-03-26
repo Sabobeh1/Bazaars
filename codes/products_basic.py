@@ -1,3 +1,6 @@
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
+
 import requests
 import mysql.connector
 import json
@@ -13,6 +16,7 @@ db = mysql.connector.connect(
     database="bazaars2"
 )
 cursor = db.cursor()
+
 # -----------------------------------------------------------------------------
 # 2) DEFINE AUTH HEADERS FOR BIGBUY
 # -----------------------------------------------------------------------------
@@ -21,11 +25,46 @@ headers = {
 }
 
 # -----------------------------------------------------------------------------
-# 3) FETCH PRODUCTS FROM BIGBUY (using the products.json endpoint)
+# 3) FETCH AND INSERT TAXONOMIES (CATEGORIES) INTO `categories` TABLE
+#    Using GET /rest/catalog/taxonomies.json?firstLevel to get only first-level categories.
 # -----------------------------------------------------------------------------
-url = "https://api.bigbuy.eu/rest/catalog/products.json?isoCode=en&parentTaxonomy=19668"
-print(f"Fetching products from {url}...")
-response = requests.get(url, headers=headers)
+taxonomy_url = "https://api.bigbuy.eu/rest/catalog/taxonomies.json?firstLevel"
+print("Fetching categories from BigBuy...")
+taxonomy_response = requests.get(taxonomy_url, headers=headers)
+
+if taxonomy_response.status_code == 200:
+    all_taxonomies = taxonomy_response.json()
+    print(f"Fetched {len(all_taxonomies)} categories. Inserting/Updating in DB...")
+    
+    for tax in all_taxonomies:
+        cat_id = tax.get("id")
+        cat_name = tax.get("name")
+        parent_tax = tax.get("parentTaxonomy")
+        dateAdd = tax.get("dateAdd")   # e.g., "2021-10-20 13:53:25"
+        dateUpd = tax.get("dateUpd")   # e.g., "2023-03-01 16:18:08"
+        urlImages = tax.get("urlImages")
+        isoCode = tax.get("isoCode")
+        
+        query = """
+        INSERT IGNORE INTO categories (id, name, parentTaxonomy, dateAdd, dateUpd, urlImages, isoCode)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """
+        values = (cat_id, cat_name, parent_tax, dateAdd, dateUpd, urlImages, isoCode)
+        cursor.execute(query, values)
+        print(f"Inserted category {cat_id} - {cat_name}")
+    
+    db.commit()
+    print("Categories inserted/updated successfully.")
+else:
+    print("Failed to fetch categories:", taxonomy_response.status_code, taxonomy_response.text)
+
+# -----------------------------------------------------------------------------
+# 4) FETCH PRODUCTS FROM BIGBUY (using the products.json endpoint)
+#    And INSERT INTO `products_t` (only base product data)
+# -----------------------------------------------------------------------------
+product_url = "https://api.bigbuy.eu/rest/catalog/products.json?isoCode=en&parentTaxonomy=19668"
+print(f"\nFetching products from {product_url}...")
+response = requests.get(product_url, headers=headers)
 
 if response.status_code == 200:
     products = response.json()
@@ -35,7 +74,7 @@ if response.status_code == 200:
     skip_count = 0
     
     for product in products:
-        # Retrieve the product condition; only process products where condition is "NEW"
+        # Retrieve the product condition; process only if it is "NEW"
         product_condition = product.get("condition")
         print(f"Product ID: {product.get('id')} -> condition: {product_condition}")
         if product_condition != "NEW":
@@ -53,10 +92,8 @@ if response.status_code == 200:
         cat_exists = cursor.fetchone()[0]
         if cat_exists == 0:
             print(f"Warning: Category ID {category_id} does not exist in 'categories' table for product {product_id}")
-            # Depending on your logic, you can choose to skip or still insert the product.
-            # For now, we'll still insert.
+            # Depending on your logic, you can skip insertion or still insert.
         
-        # Insert the product data into products_t
         query = """
         INSERT IGNORE INTO products_t (id, sku, weight, category, product_condition)
         VALUES (%s, %s, %s, %s, %s)
@@ -69,8 +106,11 @@ if response.status_code == 200:
     print(f"Inserted/updated {insert_count} NEW products.")
     print(f"Skipped {skip_count} products that were not NEW.")
 else:
-    print("Failed to fetch data:", response.status_code, response.text)
+    print("Failed to fetch products:", response.status_code, response.text)
 
+# -----------------------------------------------------------------------------
+# 5) CLOSE DATABASE CONNECTION
+# -----------------------------------------------------------------------------
 cursor.close()
 db.close()
 print("\nAll done.")

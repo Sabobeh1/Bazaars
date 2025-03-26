@@ -1,0 +1,9 @@
+i will give u my tables formats;
+products_info_t{id,sku,title,item_description}
+products_images_t{id,product_id,image_url,is_cover}
+product_variations_stock_t{id,stock}
+product_variations_t{id,product,sku,wholesalePrice,retailPrice,inShopsPrice,extraWeight}
+products_t{id,sku,weight,category,product_condition}
+categories{id,name,parentTaxonomy,dataAdd,dataUpd,urlImages,isoCode}
+
+condition, title

@@ -39,11 +39,11 @@ def main():
         # Run SQL query to join tables and map fields:
         #
         # Mapping:
-        #   title             -> products_info_t.name
+        #   title             -> products_info_t.title
         #   actual_price      -> product_variations_t.inShopsPrice
         #   approved          -> constant "yes"
-        #   item_description  -> products_info_t.description
-        #   item_category     -> categories.name (joined on products_t.category)
+        #   item_description  -> products_info_t.item_description
+        #   item_category     -> IFNULL(c.name, CONCAT('CatID:', p.category))
         #   item_images       -> aggregated from products_images_t (by product_id)
         #   item_stock        -> product_variations_stock_t.stock (joined on product_variations_t.id)
         #   price             -> product_variations_t.retailPrice
@@ -54,29 +54,28 @@ def main():
         # -----------------------------------------------------------------------------
         query = """
         SELECT 
-        pi.title AS title,
-        ANY_VALUE(pv.inShopsPrice) AS actual_price,
-        'yes' AS approved,
-        pi.item_description AS item_description,
-        c.name AS item_category,
-        COALESCE(
-            (SELECT JSON_ARRAYAGG(image_url)
-            FROM products_images_t
-            WHERE product_id = p.id),
-            JSON_ARRAY()
-        ) AS item_images,
-        ANY_VALUE(pvs.stock) AS item_stock,
-        ANY_VALUE(pv.retailPrice) AS price,
-        p.weight AS product_weight,
-        ANY_VALUE(pv.wholesalePrice) AS sale_price
-    FROM products_t p
-    LEFT JOIN products_info_t pi ON p.id = pi.id
-    LEFT JOIN categories c ON p.category = c.id
-    LEFT JOIN product_variations_t pv ON p.id = pv.product
-    LEFT JOIN product_variations_stock_t pvs ON pv.id = pvs.id
-    WHERE p.product_condition = 'NEW'
-    GROUP BY p.id;
-
+            pi.title AS title,
+            ANY_VALUE(pv.inShopsPrice) AS actual_price,
+            'yes' AS approved,
+            pi.item_description AS item_description,
+            IFNULL(c.name, CONCAT('CatID:', p.category)) AS item_category,
+            COALESCE(
+                (SELECT JSON_ARRAYAGG(image_url)
+                 FROM products_images_t
+                 WHERE product_id = p.id),
+                JSON_ARRAY()
+            ) AS item_images,
+            ANY_VALUE(pvs.stock) AS item_stock,
+            ANY_VALUE(pv.retailPrice) AS price,
+            p.weight AS product_weight,
+            ANY_VALUE(pv.wholesalePrice) AS sale_price
+        FROM products_t p
+        LEFT JOIN products_info_t pi ON p.id = pi.id
+        LEFT JOIN categories c ON p.category = c.id
+        LEFT JOIN product_variations_t pv ON p.id = pv.product
+        LEFT JOIN product_variations_stock_t pvs ON pv.id = pvs.id
+        WHERE p.product_condition = 'NEW'
+        GROUP BY p.id
         """
         
         print("Executing query to fetch final product data...")
