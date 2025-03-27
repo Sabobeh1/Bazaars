@@ -23,7 +23,7 @@ HEADERS = {
     "Authorization": "Bearer MGVmNDJiYjRlZTVjYTA0ODM2YzIyYTljZjY3MmFjNzVlYzQ0ZDllMmRhZWYxODA1MTg0MDMzNDY0MGU2ZDI0Zg"
 }
 
-# Output files for the export
+# Output files for the export (this export will be combined for all categories processed)
 JSON_OUTPUT_FILE = 'final_products_export.json'
 CSV_OUTPUT_FILE = 'final_products_export.csv'
 
@@ -36,18 +36,25 @@ def convert_decimal_to_float(obj):
     raise TypeError
 
 # ------------------------------
-# Task 1: Update product variations (prices)
+# Function: Process one category (update variations, update stock, and export CSV for that category)
 # ------------------------------
-def update_product_variations():
+def process_category(cat):
+    cat_id = cat["id"]
+    cat_name = cat["name"]
+    print(f"\nProcessing category '{cat_name}' (ID: {cat_id})...")
+    
+    # ------------------------------
+    # Update product variations for this category
+    # ------------------------------
+    variations_url = f"https://api.bigbuy.eu/rest/catalog/productsvariations.json?isoCode=en&parentTaxonomy={cat_id}"
+    print(f"Fetching product variations for category '{cat_name}' from {variations_url}...")
     try:
-        db = mysql.connector.connect(**DB_CONFIG)
-        cursor = db.cursor()
-        variations_url = "https://api.bigbuy.eu/rest/catalog/productsvariations.json?isoCode=en&parentTaxonomy=19668"
-        print("Fetching product variations from BigBuy...")
-        response = requests.get(variations_url, headers=HEADERS)
-        if response.status_code == 200:
-            variations = response.json()
-            print(f"Fetched {len(variations)} product variations. Processing...")
+        db_var = mysql.connector.connect(**DB_CONFIG)
+        cursor_var = db_var.cursor()
+        response_var = requests.get(variations_url, headers=HEADERS)
+        if response_var.status_code == 200:
+            variations = response_var.json()
+            print(f"Fetched {len(variations)} product variations for category '{cat_name}'. Processing...")
             for variation in variations:
                 variation_id   = variation.get("id")
                 product        = variation.get("product")
@@ -68,32 +75,31 @@ def update_product_variations():
                     extraWeight = VALUES(extraWeight)
                 """
                 values = (variation_id, product, sku, wholesalePrice, retailPrice, inShopsPrice, extraWeight)
-                cursor.execute(query, values)
-                db.commit()
+                cursor_var.execute(query, values)
+                db_var.commit()
                 print(f"Inserted/updated variation {variation_id}")
         else:
-            print("Failed to fetch product variations:", response.status_code, response.text)
+            print(f"Failed to fetch product variations for category {cat_id}: {response_var.status_code} {response_var.text}")
     except Error as e:
         print("Database error in update_product_variations:", e)
     finally:
-        if db.is_connected():
-            cursor.close()
-            db.close()
-            print("Product variations update: Database connection closed.")
+        if db_var.is_connected():
+            cursor_var.close()
+            db_var.close()
+            print("Product variations update for category completed.")
 
-# ------------------------------
-# Task 2: Update product variations stock
-# ------------------------------
-def update_product_variations_stock():
+    # ------------------------------
+    # Update product variations stock for this category
+    # ------------------------------
     try:
-        db = mysql.connector.connect(**DB_CONFIG)
-        cursor = db.cursor()
-        stock_url = "https://api.bigbuy.eu/rest/catalog/productsvariationsstockbyhandlingdays.json?isoCode=en&parentTaxonomy=19668"
-        print("Fetching product variations stock data from BigBuy...")
-        response = requests.get(stock_url, headers=HEADERS)
-        if response.status_code == 200:
-            stocks = response.json()
-            print(f"Fetched {len(stocks)} stock entries. Processing...")
+        db_stock = mysql.connector.connect(**DB_CONFIG)
+        cursor_stock = db_stock.cursor()
+        stock_url = f"https://api.bigbuy.eu/rest/catalog/productsvariationsstockbyhandlingdays.json?isoCode=en&parentTaxonomy={cat_id}"
+        print(f"Fetching product variations stock for category '{cat_name}' from {stock_url}...")
+        response_stock = requests.get(stock_url, headers=HEADERS)
+        if response_stock.status_code == 200:
+            stocks = response_stock.json()
+            print(f"Fetched {len(stocks)} stock entries for category '{cat_name}'. Processing...")
             for stock_entry in stocks:
                 variation_id = stock_entry.get("id")
                 stock_list = stock_entry.get("stocks", [])
@@ -106,28 +112,27 @@ def update_product_variations_stock():
                 VALUES (%s, %s)
                 ON DUPLICATE KEY UPDATE stock = VALUES(stock)
                 """
-                cursor.execute(query, (variation_id, total_stock))
-                db.commit()
+                cursor_stock.execute(query, (variation_id, total_stock))
+                db_stock.commit()
                 print(f"Updated stock for variation {variation_id}: {total_stock}")
         else:
-            print("Failed to fetch product variations stock:", response.status_code, response.text)
+            print(f"Failed to fetch stock for category {cat_id}: {response_stock.status_code} {response_stock.text}")
     except Error as e:
         print("Database error in update_product_variations_stock:", e)
     finally:
-        if db.is_connected():
-            cursor.close()
-            db.close()
-            print("Product variations stock update: Database connection closed.")
+        if db_stock.is_connected():
+            cursor_stock.close()
+            db_stock.close()
+            print("Product variations stock update for category completed.")
 
-# ------------------------------
-# Task 3: Export final CSV (joining static & dynamic data)
-# ------------------------------
-def export_final_csv():
+    # ------------------------------
+    # Export final CSV for this category (filtered by p.category = cat_id)
+    # ------------------------------
+    final_category_data = []
     try:
-        db = mysql.connector.connect(**DB_CONFIG)
-        cursor = db.cursor(dictionary=True)
-        print("Executing query to fetch final product data for export...")
-        query = """
+        db_export = mysql.connector.connect(**DB_CONFIG)
+        cursor_export = db_export.cursor(dictionary=True)
+        export_query = f"""
         SELECT 
             pi.title AS title,
             ANY_VALUE(pv.inShopsPrice) AS actual_price,
@@ -152,34 +157,62 @@ def export_final_csv():
         WHERE p.product_condition = 'NEW'
         GROUP BY p.id
         """
-        cursor.execute(query)
-        results = cursor.fetchall()
-        print(f"Fetched {len(results)} rows.")
+        print(f"Executing export query for category '{cat_name}'...")
+        cursor_export.execute(export_query)
+        results = cursor_export.fetchall()
+        print(f"Fetched {len(results)} rows for category '{cat_name}'.")
         
-        # Convert any Decimal fields to float
         for row in results:
             for key, value in row.items():
                 if isinstance(value, Decimal):
                     row[key] = float(value)
-        
-        # Transform item_images field (convert JSON string to list)
-        final_data = []
-        for row in results:
             try:
                 images_list = json.loads(row['item_images'])
-            except Exception as e:
+            except Exception:
                 images_list = []
             row['item_images'] = images_list
-            final_data.append(row)
+            final_category_data.append(row)
         
-        print(f"Transformed {len(final_data)} rows to final format.")
+        cursor_export.close()
+        db_export.close()
+    except Error as e:
+        print("Database error in export for category:", e)
+    
+    # Return the final data for this category
+    return final_category_data
+
+# ------------------------------
+# Task: Export final CSV for all categories (by iterating through categories)
+# ------------------------------
+def export_all_categories_csv():
+    try:
+        db = mysql.connector.connect(**DB_CONFIG)
+        cursor = db.cursor(dictionary=True)
+        print("Fetching all categories for export...")
+        # For testing, we use LIMIT 2; remove LIMIT to process all categories.
+        cursor.execute("SELECT id, name FROM categories ORDER BY id LIMIT 2")
+        categories = cursor.fetchall()
+        if not categories:
+            print("No categories found. Exiting export.")
+            cursor.close()
+            db.close()
+            return
         
-        # Save JSON export (optional)
+        combined_data = []
+        for cat in categories:
+            cat_data = process_category(cat)
+            combined_data.extend(cat_data)
+        
+        print(f"Combined data from all categories: {len(combined_data)} rows.")
+        
+        # Save JSON
+        print(f"Saving JSON data to {JSON_OUTPUT_FILE}...")
         with open(JSON_OUTPUT_FILE, 'w', encoding='utf-8') as json_file:
-            json.dump(final_data, json_file, indent=2, default=convert_decimal_to_float)
-        print(f"JSON file saved as {JSON_OUTPUT_FILE}.")
+            json.dump(combined_data, json_file, indent=2, default=convert_decimal_to_float)
+        print("JSON file saved.")
         
-        # Save CSV export
+        # Save CSV
+        print(f"Saving CSV data to {CSV_OUTPUT_FILE}...")
         field_names = [
             "title",
             "actual_price",
@@ -195,36 +228,30 @@ def export_final_csv():
         with open(CSV_OUTPUT_FILE, 'w', newline='', encoding='utf-8') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=field_names)
             writer.writeheader()
-            for item in final_data:
+            for item in combined_data:
                 if isinstance(item["item_images"], list):
                     item["item_images"] = "[" + ", ".join(f'"{img}"' for img in item["item_images"]) + "]"
                 writer.writerow(item)
         print(f"CSV file saved as {CSV_OUTPUT_FILE}.")
         
+        cursor.close()
+        db.close()
     except Error as e:
-        print(f"Database error in export_final_csv: {e}")
-    finally:
-        if db.is_connected():
-            cursor.close()
-            db.close()
-            print("Export final CSV: Database connection closed.")
+        print(f"Database error in export_all_categories_csv: {e}")
 
 # ------------------------------
-# Job: Run all three tasks
+# Job: Run the export for all categories (iterating over categories)
 # ------------------------------
 def job():
-    print("Refreshing product variations, stock, and CSV export...")
-    update_product_variations()
-    update_product_variations_stock()
-    export_final_csv()
+    print("Starting refresh cycle for all categories...")
+    export_all_categories_csv()
     print("Refresh cycle completed.\n")
 
 # ------------------------------
-# Schedule the job to run every 15 minutes
+# Schedule the job to run every 15 minutes (set to 2 minutes for testing)
 # ------------------------------
 import schedule
-
-schedule.every(2).minutes.do(job)
+schedule.every(5).minutes.do(job)
 
 print("Scheduler started. Running tasks every 15 minutes...")
 while True:

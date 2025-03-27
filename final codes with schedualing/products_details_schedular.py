@@ -121,7 +121,82 @@ for cat in first_two_categories:
         print(f"Failed to fetch products for category {cat_id}: {response.status_code} {response.text}")
 
 # -----------------------------------------------------------------------------
-# 5) CLOSE DATABASE CONNECTION
+# 5) LOOP THROUGH EACH CATEGORY, FETCH PRODUCT INFORMATION, AND INSERT INTO products_info_t
+# -----------------------------------------------------------------------------
+
+# Build the dynamic API endpoint using the category id
+    url = f"https://api.bigbuy.eu/rest/catalog/productsinformation.json?isoCode=en&parentTaxonomy={cat_id}"
+    print(f"\nFetching product information for category '{cat_name}' (ID: {cat_id}) from {url}...")
+    response_info = requests.get(url, headers=headers)
+    
+    if response_info.status_code == 200:
+        product_infos = response_info.json()
+        print(f"Fetched {len(product_infos)} product information entries for category '{cat_name}'. Processing...")
+        
+        for info in product_infos:
+            product_id = info.get("id")
+            sku = info.get("sku")
+            # Map the BigBuy "name" field to our "title" field
+            title = info.get("name")
+            # Map the BigBuy "description" field to our "description" column
+            description = info.get("description")
+            
+            # Check if product info for this product already exists
+            cursor.execute("SELECT COUNT(*) AS cnt FROM products_info_t WHERE id = %s", (product_id,))
+            if cursor.fetchone()["cnt"] > 0:
+                print(f"Product with ID {product_id} already exists in products_info_t. Skipping.")
+                continue
+            
+            query = """
+            INSERT INTO products_info_t (id, sku, title, description)
+            VALUES (%s, %s, %s, %s)
+            """
+            values = (product_id, sku, title, description)
+            cursor.execute(query, values)
+            db.commit()
+            print(f"Inserted product info for product ID {product_id}")
+    else:
+        print(f"Failed to fetch product information for category ID {cat_id}: {response_info.status_code} {response_info.text}")
+
+
+# -----------------------------------------------------------------------------
+# 6) FOR EACH CATEGORY, FETCH PRODUCT IMAGES USING A DYNAMIC API ENDPOINT,
+#    THEN INSERT/UPDATE INTO products_images_t
+# -----------------------------------------------------------------------------
+
+# Build the dynamic API endpoint with the category id
+    url = f"https://api.bigbuy.eu/rest/catalog/productsimages.json?isoCode=en&parentTaxonomy={cat_id}"
+    print(f"\nFetching product images for category '{cat_name}' (ID: {cat_id}) from {url}...")
+    response_images = requests.get(url, headers=headers)
+    
+    if response_images.status_code == 200:
+        image_entries = response_images.json()
+        for entry in image_entries:
+            product_id = entry.get("id")
+            images_list = entry.get("images", [])
+            for image in images_list:
+                image_url = image.get("url")
+                # Ensure is_cover is stored as a string ("TRUE" or "FALSE")
+                is_cover = image.get("isCover")
+                if isinstance(is_cover, bool):
+                    is_cover = "TRUE" if is_cover else "FALSE"
+                else:
+                    is_cover = str(is_cover).upper()
+                
+                query = """
+                INSERT INTO products_images_t (product_id, image_url, is_cover)
+                VALUES (%s, %s, %s)
+                ON DUPLICATE KEY UPDATE is_cover = VALUES(is_cover)
+                """
+                values = (product_id, image_url, is_cover)
+                cursor.execute(query, values)
+        db.commit()
+        print(f"Product images inserted/updated successfully for category '{cat_name}'.")
+    else:
+        print(f"Failed to fetch product images for category {cat_id}: {response_images.status_code} {response_images.text}")
+
+# -----------------------------------------------------------------------------
+# 7) CLOSE DATABASE CONNECTION
 # -----------------------------------------------------------------------------
 cursor.close()
 db.close()
