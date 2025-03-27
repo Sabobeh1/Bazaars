@@ -45,7 +45,7 @@ if response_info.status_code == 200:
             continue
         
         query = """
-        INSERT INTO products_info_t (id, sku, title, item_description)
+        INSERT INTO products_info_t (id, sku, title, description)
         VALUES (%s, %s, %s, %s)
         """
         values = (product_id, sku, title, item_description)

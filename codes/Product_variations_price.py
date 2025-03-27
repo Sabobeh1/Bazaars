@@ -24,7 +24,7 @@ headers = {
 # -----------------------------------------------------------------------------
 # 3) FETCH PRODUCT VARIATIONS FROM BIGBUY
 # -----------------------------------------------------------------------------
-variations_url = "https://api.bigbuy.eu/rest/catalog/productsvariations.json?parentTaxonomy=19668"
+variations_url = "https://api.bigbuy.eu/rest/catalog/productsvariations.json?isoCode=en&parentTaxonomy=19668"
 print("Fetching product variations from BigBuy...")
 response = requests.get(variations_url, headers=headers)
 

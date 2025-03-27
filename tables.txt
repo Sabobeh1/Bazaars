@@ -41,7 +41,7 @@ DROP TABLE IF EXISTS products_info_t;
 CREATE TABLE products_info_t (
   id INT NOT NULL,
   sku VARCHAR(100),
-  name VARCHAR(255),         -- Will be used as "title"
+  title VARCHAR(255),         -- Will be used as "title"
   description TEXT,          -- Will be used as "item_description"
   PRIMARY KEY (id)
 );
@@ -138,4 +138,31 @@ product_weight: → from products_t.weight
 
 sale_price: → from product_variations_t.wholesalePrice
 
+===============================================================
+id, name, parentTaxonomy, dateAdd, dateUpd, urlImages, isoCode
+'17088', 'Sex and sensuality', '0', '2021-10-20 13:54:36', '2025-03-25 23:17:07', 'https://cdnbigbuy.com/images/7350007903860_M0407331_P00.jpg', 'en'
+'19648', 'Food and drink', '0', '2021-10-20 06:59:18', '2025-03-11 22:01:06', 'https://cdnbigbuy.com/images/0767870881046_S0594566_P00.jpg', 'en'
+'19649', 'Baby', '0', '2021-10-20 13:16:22', '2025-03-26 14:03:11', 'https://cdnbigbuy.com/images/9783380990321_R30.jpg', 'en'
+'19650', 'Beauty', '0', '2021-10-19 06:50:27', '2025-03-26 18:36:12', 'https://cdnbigbuy.com/images/8809572891243_S05130856_P00.jpg', 'en'
+'19651', 'DIY and tools', '0', '2021-10-19 19:33:09', '2025-03-26 17:05:35', 'https://cdnbigbuy.com/images/8410020008931_M0528114_P00.jpg', 'en'
+'19652', 'Car and motorbike', '0', '2021-10-20 13:34:59', '2025-03-26 14:40:18', 'https://cdnbigbuy.com/images/0753759335380_S71013530_P00.jpg', 'en'
+'19653', 'Electronics', '0', '2021-10-19 10:09:22', '2025-03-26 23:35:12', 'https://cdnbigbuy.com/images/6932554407926_S7844665_P00.jpg', 'en'
+'19654', 'Luggage', '0', '2021-10-20 13:16:45', '2025-03-26 13:26:43', 'https://cdnbigbuy.com/images/8445484469745_S2450472_P00.jpg', 'en'
+'19655', 'Large white goods', '0', '2024-04-13 07:56:16', '2024-04-13 07:56:16', NULL, 'en'
+'19656', 'Home and cooking', '0', '2021-10-19 09:24:47', '2025-03-26 23:35:33', 'https://cdnbigbuy.com/images/8426156018706_S8110041_P00.jpg', 'en'
+'19657', 'Lighting', '0', '2021-10-20 13:17:56', '2025-03-26 12:57:07', 'https://cdnbigbuy.com/images/4751029894564_S7926304_P00.jpg', 'en'
+'19658', 'Industry, companies and science', '0', '2021-10-20 13:22:58', '2025-03-21 09:38:17', 'https://cdnbigbuy.com/images/8435532910169_M0519780_P00.jpg', 'en'
+'19661', 'Garden', '0', '2021-10-20 13:22:01', '2025-03-26 17:05:30', 'https://cdnbigbuy.com/images/3760107378330_S71013523_P10.jpg', 'en'
+'19662', 'Jewellery', '0', '2021-10-19 19:25:10', '2025-03-25 14:34:15', 'https://cdnbigbuy.com/images/0725125402460_S0389489_P00.jpg', 'en'
+'19663', 'Toys and games', '0', '2021-10-19 19:21:35', '2025-03-26 20:51:09', 'https://cdnbigbuy.com/images/3380743086880_S2454931_P00.jpg', 'en'
+'19664', 'Office and stationery', '0', '2021-10-20 13:21:47', '2025-03-26 19:20:06', 'https://cdnbigbuy.com/images/4006381147125_S8438698_P00.jpg', 'en'
+'19666', 'Pet products', '0', '2021-10-20 14:19:14', '2025-03-26 11:54:05', 'https://cdnbigbuy.com/images/4018653927304_S71014601_P00.jpg', 'en'
+'19667', 'Watches', '0', '2021-10-20 13:37:13', '2025-03-26 22:58:10', 'https://cdnbigbuy.com/images/5205698704147_S72114147_P00.jpg', 'en'
+'19668', 'Clothing', '0', '2021-10-20 14:17:37', '2025-03-26 14:35:53', 'https://cdnbigbuy.com/images/M0404096_1742459764-remove-background0.jpg', 'en'
+'19669', 'Health and personal care', '0', '2021-10-20 13:34:21', '2025-03-26 08:25:43', 'https://cdnbigbuy.com/images/0071164029855_S05130819_P00.jpg', 'en'
+'19671', 'Shoes and accessories', '0', '2021-10-20 13:38:08', '2025-03-26 14:35:18', 'https://cdnbigbuy.com/images/S2454681_P00.jpg', 'en'
+'19685', 'Computing', '0', '2021-10-19 10:09:22', '2025-03-26 22:54:08', 'https://cdnbigbuy.com/images/4015867239001_I00.jpg', 'en'
+'19756', 'Sports and outdoors', '0', '2021-10-20 13:30:21', '2025-03-26 14:49:17', 'https://cdnbigbuy.com/images/8412842626737_S2455405_P00.jpg', 'en'
+'31836', 'Sweatshirts', '0', '2025-03-06 12:00:06', '2025-03-06 12:00:06', 'https://cdnbigbuy.com/images/8445484334982_S2454894_P00.jpg', 'en'
+'31857', 'Baseball Caps', '0', '2025-02-26 11:00:11', '2025-02-26 11:00:11', 'https://cdnbigbuy.com/images/S64144829_1733141912-remove-background0.jpg', 'en'
 

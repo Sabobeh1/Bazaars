@@ -57,7 +57,7 @@ def main():
             pi.title AS title,
             ANY_VALUE(pv.inShopsPrice) AS actual_price,
             'yes' AS approved,
-            pi.item_description AS item_description,
+            pi.description AS item_description,
             IFNULL(c.name, CONCAT('CatID:', p.category)) AS item_category,
             COALESCE(
                 (SELECT JSON_ARRAYAGG(image_url)
