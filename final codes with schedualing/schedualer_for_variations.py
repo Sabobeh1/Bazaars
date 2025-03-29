@@ -24,8 +24,8 @@ HEADERS = {
 }
 
 # Output files for the export (this export will be combined for all categories processed)
-JSON_OUTPUT_FILE = 'final_products_export.json'
-CSV_OUTPUT_FILE = 'final_products_export.csv'
+JSON_OUTPUT_FILE = 'final_products_export3.json'
+CSV_OUTPUT_FILE = 'final_products_export3.csv'
 
 # ------------------------------
 # Helper: Convert Decimal to float
@@ -63,6 +63,18 @@ def process_category(cat):
                 retailPrice    = variation.get("retailPrice")
                 inShopsPrice   = variation.get("inShopsPrice")
                 extraWeight    = variation.get("extraWeight")
+
+                
+                # If any price or weight is null, set it to zero
+                if wholesalePrice is None:
+                    wholesalePrice = 0
+                if retailPrice is None:
+                    retailPrice = 0
+                if inShopsPrice is None:
+                    inShopsPrice = 0
+                if extraWeight is None:
+                    extraWeight = 0
+
                 query = """
                 INSERT INTO product_variations_t 
                    (id, product, sku, wholesalePrice, retailPrice, inShopsPrice, extraWeight)
@@ -133,30 +145,33 @@ def process_category(cat):
         db_export = mysql.connector.connect(**DB_CONFIG)
         cursor_export = db_export.cursor(dictionary=True)
         export_query = f"""
-        SELECT 
+       SELECT 
+            p.id AS product_id,
             pi.title AS title,
-            ANY_VALUE(pv.inShopsPrice) AS actual_price,
+            COALESCE(ANY_VALUE(pv.inShopsPrice), p.inShopsPrice) AS actual_price,
             'yes' AS approved,
             pi.description AS item_description,
             IFNULL(c.name, CONCAT('CatID:', p.category)) AS item_category,
             COALESCE(
                 (SELECT JSON_ARRAYAGG(image_url)
-                 FROM products_images_t
-                 WHERE product_id = p.id),
+                FROM products_images_t
+                WHERE product_id = p.id),
                 JSON_ARRAY()
             ) AS item_images,
-            ANY_VALUE(pvs.stock) AS item_stock,
-            ANY_VALUE(pv.retailPrice) AS price,
+            COALESCE(ANY_VALUE(pvs.stock), ps.stock) AS item_stock,
+            COALESCE(ANY_VALUE(pv.retailPrice), p.retailPrice) AS price,
             p.weight AS product_weight,
-            ANY_VALUE(pv.wholesalePrice) AS sale_price
+            COALESCE(ANY_VALUE(pv.wholesalePrice), p.wholesalePrice) AS sale_price
         FROM products_t p
         LEFT JOIN products_info_t pi ON p.id = pi.id
         LEFT JOIN categories c ON p.categoryTopLevelID = c.id
         LEFT JOIN product_variations_t pv ON p.id = pv.product
         LEFT JOIN product_variations_stock_t pvs ON pv.id = pvs.id
+        LEFT JOIN products_stock_t ps ON p.id=ps.product_id
         WHERE p.product_condition = 'NEW'
-          AND p.categoryTopLevelID = {cat_id}
-        GROUP BY p.id
+        AND p.categoryTopLevelID = {cat_id}
+        GROUP BY p.id;
+
         """
         print(f"Executing export query for category '{cat_name}'...")
         cursor_export.execute(export_query)
@@ -191,7 +206,7 @@ def export_all_categories_csv():
         cursor = db.cursor(dictionary=True)
         print("Fetching all categories for export...")
         # For testing, we use LIMIT 2; remove LIMIT to process all categories.
-        cursor.execute("SELECT id, name FROM categories ORDER BY id LIMIT 4")
+        cursor.execute("SELECT id, name FROM categories ORDER BY id LIMIT 2")
         categories = cursor.fetchall()
         if not categories:
             print("No categories found. Exiting export.")
@@ -215,6 +230,7 @@ def export_all_categories_csv():
         # Save CSV
         print(f"Saving CSV data to {CSV_OUTPUT_FILE}...")
         field_names = [
+            "product_id",
             "title",
             "actual_price",
             "approved",
@@ -244,15 +260,21 @@ def export_all_categories_csv():
 # Job: Run the export for all categories (iterating over categories)
 # ------------------------------
 def job():
-    print("Starting refresh cycle for all categories...")
     export_all_categories_csv()
     print("Refresh cycle completed.\n")
+    print("Starting refresh cycle for all categories...")
+
+
+
+# Run the job immediately
+job()
+
 
 # ------------------------------
 # Schedule the job to run every 15 minutes (set to 2 minutes for testing)
 # ------------------------------
 import schedule
-schedule.every(12).minutes.do(job)
+schedule.every(3).minutes.do(job)
 
 print("Scheduler started. Running tasks every 15 minutes...")
 while True:
