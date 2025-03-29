@@ -22,11 +22,13 @@ sql
 Copy
 DROP TABLE IF EXISTS products_t;
 CREATE TABLE products_t (
-  id INT NOT NULL,
+  id INT NOT NULL,   
   sku VARCHAR(100),
   weight DECIMAL(10,3),
-  category INT,        -- Foreign key to categories.id
-  condition VARCHAR(50),
+  category INT,        -- sub_level id for a specific product that its an additional column
+  product_condition VARCHAR(50),
+  categoryTopLevelID INT,        -- Foreign key to categories.id that we want to join with categories table through it 
+
   PRIMARY KEY (id)
 );
 
