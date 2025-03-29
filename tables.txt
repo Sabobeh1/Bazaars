@@ -18,8 +18,6 @@ CREATE TABLE categories (
 Stores basic (base) product data such as the product’s id, SKU, weight, category, and condition.
 (This table is used to join with the variations.)
 
-sql
-Copy
 DROP TABLE IF EXISTS products_t;
 CREATE TABLE products_t (
   id INT NOT NULL,   
@@ -28,6 +26,9 @@ CREATE TABLE products_t (
   category INT,        -- sub_level id for a specific product that its an additional column
   product_condition VARCHAR(50),
   categoryTopLevelID INT,        -- Foreign key to categories.id that we want to join with categories table through it 
+  wholesalePrice DECIMAL(10,2),   -- Used as sale_price
+  retailPrice DECIMAL(10,2),      -- Used as price
+  inShopsPrice DECIMAL(10,2),     -- Used as actual_price
 
   PRIMARY KEY (id)
 );
@@ -37,8 +38,6 @@ CREATE TABLE products_t (
 1.3 Products_info_t
 Holds the text information about a product (name and description) as returned by the Products Information endpoint.
 
-sql
-Copy
 DROP TABLE IF EXISTS products_info_t;
 CREATE TABLE products_info_t (
   id INT NOT NULL,
@@ -54,8 +53,6 @@ CREATE TABLE products_info_t (
 Stores each variation’s pricing and extra weight data from the Product Variations endpoint.
 Each record here represents a specific variation of a product.
 
-sql
-Copy
 DROP TABLE IF EXISTS product_variations_t;
 CREATE TABLE product_variations_t (
   id INT NOT NULL,         -- Variation ID
@@ -73,8 +70,6 @@ CREATE TABLE product_variations_t (
 1.5 Product_variations_stock_t
 Stores stock data per variation from the Stock Variation endpoint.
 
-sql
-Copy
 DROP TABLE IF EXISTS product_variations_stock_t;
 CREATE TABLE product_variations_stock_t (
   id INT NOT NULL,         -- Variation ID (should match product_variations_t.id)
@@ -87,8 +82,6 @@ CREATE TABLE product_variations_stock_t (
 1.6 Products_images_t
 Stores image URLs for products (typically the same for all variations).
 
-sql
-Copy
 DROP TABLE IF EXISTS products_images_t;
 CREATE TABLE products_images_t (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -97,6 +90,17 @@ CREATE TABLE products_images_t (
   is_cover VARCHAR(5),
   UNIQUE KEY uq_product_image (product_id, image_url)
 );
+
+=======================================
+
+1.7 products_stock_t
+
+CREATE TABLE products_stock_t (
+  product_id INT NOT NULL,         -- product ID (should match product_variations_t.id) 
+  stock INT NOT NULL,
+  PRIMARY KEY (id)
+); 
+
 
 ////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////

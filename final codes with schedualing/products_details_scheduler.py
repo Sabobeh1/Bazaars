@@ -62,7 +62,7 @@ else:
 # 3.5) FETCH FIRST 2 CATEGORIES FROM THE DATABASE FOR TESTING
 # -----------------------------------------------------------------------------
 print("\nFetching first 2 categories from the database for product fetching test...")
-cursor.execute("SELECT id, name FROM categories ORDER BY id LIMIT 4")
+cursor.execute("SELECT id, name FROM categories ORDER BY id LIMIT 2")
 first_two_categories = cursor.fetchall()
 if not first_two_categories:
     print("No categories found in the database. Exiting.")
@@ -99,7 +99,11 @@ for cat in first_two_categories:
             sku = product.get("sku")
             weight = product.get("weight")
             category_id = product.get("category")  # This should match a value in the categories table
-            
+            wholesalePrice = product.get("wholesalePrice")
+            retailPrice    = product.get("retailPrice")
+            inShopsPrice   = product.get("inShopsPrice")
+          
+
             # Optionally, check if the referenced category exists.
             cursor.execute("SELECT COUNT(*) AS cnt FROM categories WHERE id = %s", (category_id,))
             cat_exists = cursor.fetchone()["cnt"]
@@ -108,10 +112,10 @@ for cat in first_two_categories:
                 # Decide whether to skip; here, we'll still insert.
             
             query = """
-            INSERT IGNORE INTO products_t (id, sku, weight, category, product_condition, categoryTopLevelID)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT IGNORE INTO products_t (id, sku, weight, category, product_condition, categoryTopLevelID, wholesalePrice, retailPrice, inShopsPrice)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
-            values = (product_id, sku, weight, category_id, product_condition, cat_id)
+            values = (product_id, sku, weight, category_id, product_condition, cat_id, wholesalePrice, retailPrice, inShopsPrice)
             cursor.execute(query, values)
             db.commit()
             insert_count += 1
@@ -195,8 +199,42 @@ for cat in first_two_categories:
     else:
         print(f"Failed to fetch product images for category {cat_id}: {response_images.status_code} {response_images.text}")
 
+
 # -----------------------------------------------------------------------------
-# 7) CLOSE DATABASE CONNECTION
+# 7) LOOP THROUGH EACH CATEGORY AND FETCH STOCK DATA DYNAMICALLY
+# -----------------------------------------------------------------------------
+
+    # Build the dynamic stock API endpoint using the category id
+    stock_url = f"https://api.bigbuy.eu/rest/catalog/productsstockbyhandlingdays.json?isoCode=en&parentTaxonomy={cat_id}"
+    print(f"\nFetching stock data for category '{cat_name}' (ID: {cat_id}) from {stock_url}...")
+    
+    try:
+        response_stock = requests.get(stock_url, headers=headers)
+        if response_stock.status_code == 200:
+            stocks = response_stock.json()
+            print(f"Fetched {len(stocks)} stock entries for category '{cat_name}'. Processing...")
+            for stock_entry in stocks:
+                product_id = stock_entry.get("id")
+                stock_list = stock_entry.get("stocks", [])
+                if not product_id or not isinstance(stock_list, list):
+                    print(f"Skipping invalid stock entry: {stock_entry}")
+                    continue
+                total_stock = sum(item.get("quantity", 0) for item in stock_list)
+                query = """
+                INSERT INTO products_stock_t (product_id, stock)
+                VALUES (%s, %s)
+                ON DUPLICATE KEY UPDATE stock = VALUES(stock)
+                """
+                cursor.execute(query, (product_id, total_stock))
+                db.commit()
+                print(f"Updated stock for variation {product_id}: {total_stock}")
+        else:
+            print(f"Failed to fetch stock for category {cat_id}: {response_stock.status_code} {response_stock.text}")
+    except Exception as e:
+        print(f"Error fetching stock for category {cat_id}: {e}")
+
+# -----------------------------------------------------------------------------
+# 8) CLOSE DATABASE CONNECTION
 # -----------------------------------------------------------------------------
 cursor.close()
 db.close()
